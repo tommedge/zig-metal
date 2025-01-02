@@ -3,41 +3,35 @@ const std = @import("std");
 pub const Package = struct {
     module: *std.Build.Module,
 
-    pub fn link(pkg: Package, exe: *std.Build.CompileStep) void {
-        exe.addModule("zig-metal", pkg.module);
+    pub fn link(pkg: Package, exe: *std.Build.Step.Compile) void {
+        exe.root_module.addImport("zig-metal", pkg.module);
     }
 };
 
 pub fn package(b: *std.Build) Package {
+    const module = b.createModule(
+        .{ .root_source_file = b.path("src/main.zig") },
+    );
+    module.addImport("zigtrait", zigTraitModule(b));
     return .{
-        .module = b.createModule(
-            .{
-                .source_file = .{ .path = thisDir() ++ "/src/main.zig" },
-                .dependencies = &[_]std.build.ModuleDependency{
-                    .{
-                        .name = "zigtrait",
-                        .module = zigTraitModule(b),
-                    },
-                },
-            },
-        ),
+        .module = module,
     };
 }
 
 pub fn zigTraitModule(b: *std.Build) *std.Build.Module {
-    return b.createModule(.{ .source_file = .{ .path = thisDir() ++ "/libs/zigtrait/src/zigtrait.zig" } });
+    return b.createModule(.{ .root_source_file = b.path("libs/zigtrait/src/zigtrait.zig") });
 }
 
 pub fn addExample(
     b: *std.Build,
-    target: std.zig.CrossTarget,
+    target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     comptime name: []const u8,
     comptime path: []const u8,
 ) void {
     const exe = b.addExecutable(.{
         .name = name,
-        .root_source_file = .{ .path = path ++ "/main.zig" },
+        .root_source_file = b.path(path ++ "/main.zig"),
         .target = target,
         .optimize = optimize,
     });
